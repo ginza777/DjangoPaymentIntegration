@@ -74,11 +74,13 @@ class PaymeProvider:
 
     def check_perform_transaction(self):
         print("check_perform_transaction",self.order)
-        self.validate_amount(self.params["amount"] / 100)
+
+
         if not self.order:
             print("*order topilmadi*}")
             return True, self.ORDER_NOT_FOUND_MESSAGE, self.ORDER_NOT_FOUND
-
+        self.validate_order()
+        self.validate_amount(self.params["amount"] / 100)
         if self.order.status == TransactionStatus.CONFIRMED:
             print("*order allaqachon to'langan*}")
             self.error = True
@@ -101,15 +103,20 @@ class PaymeProvider:
     def create_transaction(self):
         print("create_transaction",self.order)
         print("amount check")
-        self.validate_amount(self.params["amount"] / 100)
-        self.validate_order()
+
 
         if not self.order:
             print("order topilmadi")
             return True, self.ORDER_NOT_FOUND_MESSAGE, self.ORDER_NOT_FOUND
-
         _time = timezone.now() - timezone.timedelta(seconds=15)
+        self.validate_amount(self.params["amount"] / 100)
+        self.validate_order()
+
+
+
+        print("time")
         print(_time)
+        print(timezone.timedelta(seconds=15))
         if self.order.id:
             print("if order topildi")
             check_transaction = Transaction.objects.get(id=self.order.id)
@@ -147,9 +154,10 @@ class PaymeProvider:
 
         elif str(check_transaction.transaction_id )!= str(self.params["id"]):
             print("3 if ")
-            if str(check_transaction.status)==str(TransactionStatus.PREAUTH) or str(check_transaction.status)==str(TransactionStatus.WAITING):
+            if str(check_transaction.status)!=str(TransactionStatus.PREAUTH):
                 print("3 if 1")
                 return True, self.ORDER_NOT_FOUND_MESSAGE, self.ORDER_NOT_FOUND
+
             return True, self.ORDER_NOT_FOUND_MESSAGE, self.ORDER_NOT_FOUND
 
         elif str(check_transaction.transaction_id )== str(self.params["id"]) and str(check_transaction.status)!=str(TransactionStatus.WAITING):
@@ -196,7 +204,8 @@ class PaymeProvider:
             return True, self.TRANSACTION_NOT_FOUND_MESSAGE, self.TRANSACTION_NOT_FOUND
 
         if transaction.status == TransactionStatus.CONFIRMED:
-            return True, self.UNABLE_TO_PERFORM_OPERATION, self.UNABLE_TO_PERFORM_OPERATION_MESSAGE
+            return True, -31007, self.UNABLE_TO_PERFORM_OPERATION_MESSAGE
+
+
 
         return self.error, self.error_message, self.code
-

@@ -11,13 +11,14 @@ class Transaction(BasePayment):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-    @property
-    def save_transaction_id(self):
+
+    def save(self, *args, **kwargs):
         # If transaction_id is not provided, set it to the id field
         if not self.transaction_id:
             self.transaction_id = str(self.id)
         if self.transaction_id is None:
             self.transaction_id = str(self.id)
+        super().save(*args, **kwargs)
 
 
     class Meta(BasePayment.Meta):

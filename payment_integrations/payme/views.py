@@ -39,9 +39,9 @@ class PaymentView(APIView):
         return response
 
 
-#for payme link
+# for payme link
 class PaymeLinkAPIView(PaymentView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     http_method_names = ["post"]
     serializer_class = serializers.PaymeLinkSerializer
 
@@ -127,9 +127,7 @@ class PaymeAPIView(PaymentView):
                     data="transaction not found"
                 ))
 
-
-        user_id=Transaction.objects.get(id=self.params["account"]["order_id"]).user_id
-
+        user_id = Transaction.objects.get(id=self.params["account"]["order_id"]).user_id
 
         return dict(
             result=dict(allow=True),
@@ -144,14 +142,13 @@ class PaymeAPIView(PaymentView):
             print("order not found view")
             return dict(error=dict(code=code, message=error_message))
 
-        transaction =Transaction.objects.get(
-                id=self.params["account"]["order_id"],
-                transaction_id=self.params["id"],
-                status=TransactionStatus.PREAUTH
-            )
+        transaction = Transaction.objects.get(
+            id=self.params["account"]["order_id"],
+            transaction_id=self.params["id"],
+            status=TransactionStatus.PREAUTH
+        )
 
-
-        print("transaction  mavjud:" ,transaction.id,transaction.status)
+        print("transaction  mavjud:", transaction.id, transaction.status)
 
         if not transaction:
             return dict(error=dict(code=code, message=error_message))
@@ -189,11 +186,11 @@ class PaymeAPIView(PaymentView):
             return dict(error=dict(code=code, message=error_message))
 
         if transaction.status == TransactionStatus.PREAUTH:
-            print(100*'-')
+            print(100 * '-')
             print("transaction status preauth view3")
             with db_transaction.atomic():
-                transaction.status=TransactionStatus.CONFIRMED
-                transaction.paid_at=timezone.now()
+                transaction.status = TransactionStatus.CONFIRMED
+                transaction.paid_at = timezone.now()
                 transaction.save()
 
         return dict(
@@ -214,10 +211,20 @@ class PaymeAPIView(PaymentView):
         cancel_time = int(transaction.cancel_time.timestamp() * 1000) if transaction.cancel_time else 0
         reason = None
         if transaction.status == TransactionStatus.CONFIRMED:
-            state = PaymeProvider.CLOSE_TRANSACTION
+            state = 2
+
         elif transaction.status == TransactionStatus.REJECTED:
-            state = PaymeProvider.CANCEL_TRANSACTION_CODE
-            reason = 3
+            if perform_time==0:
+                state = PaymeProvider.CANCEL_TRANSACTION_CODE
+                reason = 3
+            else:
+                state = PaymeProvider.PERFORM_CANCELED_CODE
+                reason = 5
+        elif transaction.status == TransactionStatus.PREAUTH:
+            state = 1
+        elif transaction.status == TransactionStatus.WAITING:
+            state = 1
+
         else:
             state = PaymeProvider.CREATE_TRANSACTION
 
@@ -232,15 +239,44 @@ class PaymeAPIView(PaymentView):
             )
         )
 
+
+
+
+
     def cancel_transaction(self):
         error, error_message, code = PaymeProvider(self.params).cancel_transaction()
         if error:
             return dict(error=dict(code=code, message=error_message))
         transaction = Transaction.objects.get(transaction_id=self.params["id"], variant=Provider.PAYME)
-        if transaction.status != TransactionStatus.CONFIRMED:
+        state=None
+        reason=None
+        #state 1
+        print("transaction :",transaction.status)
+        print("transaction created :",transaction.created_at)
+        print("transaction cancel: ",transaction.cancel_time)
+        print("transaction paid_at : ",transaction.paid_at)
+        print("transaction.status : ",transaction.status)
+
+
+        if transaction.status == TransactionStatus.REJECTED:
+            state=-1
+            reason=1
+
+        if transaction.status == TransactionStatus.WAITING:
             transaction.status = TransactionStatus.REJECTED
             transaction.cancel_time = timezone.now()
             transaction.save()
+            state=-1
+            reason=1
+
+        #state 2
+        if transaction.status == TransactionStatus.PREAUTH:
+            transaction.status = TransactionStatus.REJECTED
+            transaction.cancel_time = timezone.now()
+            transaction.save()
+            state=2
+            reason=1
+
 
         perform_time = int(transaction.paid_at.timestamp() * 1000) if transaction.paid_at else 0
         cancel_time = int(transaction.cancel_time.timestamp() * 1000) if transaction.cancel_time else 0
@@ -250,8 +286,8 @@ class PaymeAPIView(PaymentView):
                 perform_time=perform_time,
                 cancel_time=cancel_time,
                 transaction=str(transaction.transaction_id),
-                state=PaymeProvider.CANCEL_TRANSACTION_CODE,
-                reason=3,
+                state=state,
+                reason=reason,
             )
         )
 
