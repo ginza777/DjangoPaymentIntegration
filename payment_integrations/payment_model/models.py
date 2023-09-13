@@ -1,8 +1,9 @@
 from django.db import models
 from payments.models import BasePayment
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 
+User=get_user_model()
 
 class Transaction(BasePayment):
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='transactions')
@@ -23,12 +24,6 @@ class Transaction(BasePayment):
 
     class Meta(BasePayment.Meta):
         unique_together = ('variant', 'transaction_id')
-
-
-
-
-
-
 
 
 
@@ -60,3 +55,31 @@ class PaymentMerchantRequestLog(TimeStampedModel):
     class Meta:
         verbose_name = _("Payment Merchant Request Log")
         verbose_name_plural = _("Payment Merchant Request Logs")
+
+
+
+OPERATION = (
+        (1, _('Hisob to\'ldirildi')),
+        (2, _('Hisob raqamidan pul yechib olindi')),
+)
+
+
+class UserBalanceHistory(models.Model):
+    user = models.ForeignKey(User, verbose_name=_("Foydalanuvchi"), on_delete=models.PROTECT, related_name="balance_history")
+    amount = models.FloatField(_("Summa"))
+    operation = models.IntegerField(_('Bajarilgan amal'), choices=OPERATION)
+    prev_balance = models.FloatField(_("O'zgarishdan oldingi balans"))
+    new_balance = models.FloatField(_("O'zgarishdan keyingi balans"))
+    comment = models.TextField(_('Qo\'shimcha ma\'lumot'), null=True, blank=True)
+    created_at = models.DateTimeField(_('Vaqt'), auto_now_add=True)
+    title = models.CharField(_('Title'), max_length=256)
+    transaction = models.ForeignKey(Transaction, on_delete=models.PROTECT, related_name='hist', null=True, blank=True)
+
+    class Meta:
+        db_table = 'balance_history'
+        verbose_name = _('Foydalanuvchi hisobi tarixi')
+        verbose_name_plural = _('Foydalanuvchi hisobi tarixlari')
+
+    def __str__(self):
+        return '{0} - {1} - {2}'.format(self.user.get_full_name, str(self.amount), self.created_at.strftime("%d.%m.%Y %H:%M"))
+

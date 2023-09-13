@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'payment_integrations.payment_model',
     'payment_integrations.payme',
+    'payment_integrations.paylov',
     'payments',
     'rest_framework_simplejwt',
     'rest_framework',
