@@ -1,23 +1,27 @@
 import base64
-import uuid
-from django.utils import timezone
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db import transaction as db_transaction
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from payments import PaymentStatus as TransactionStatus
-from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 # Create your views here.
 from rest_framework.views import APIView
 
-from payment_integrations.payment_model.models import PaymentMerchantRequestLog, Provider,Transaction
-from .serializers import PaymeSerializer
-from .utils import PaymeMethods
 from core import settings
+from payment_integrations.payment_model.models import PaymentMerchantRequestLog, Provider, Transaction, \
+    UserBalanceHistory
 from . import serializers
 from .auth import AUTH_ERROR, authentication
 from .provider import PaymeProvider
+from .serializers import PaymeSerializer
+from .utils import PaymeMethods
+
+CustomUser = get_user_model()
+
 
 # for payment log
 class PaymentView(APIView):
@@ -192,6 +196,19 @@ class PaymeAPIView(PaymentView):
                 transaction.status = TransactionStatus.CONFIRMED
                 transaction.paid_at = timezone.now()
                 transaction.save()
+            user = CustomUser.objects.get(id=transaction.user_id)
+            with db_transaction.atomic():
+                ubh = UserBalanceHistory()
+                ubh.amount = transaction.total
+                ubh.user = user
+                ubh.operation = 1
+                ubh.prev_balance = user.amount
+                ubh.new_balance = user.amount + float(transaction.total)
+                ubh.transaction = transaction
+                ubh.title = 'Paylov'
+                ubh.save()
+                user.amount = user.amount + float(transaction.total)
+                user.save()
 
         return dict(
             result=dict(
@@ -214,7 +231,7 @@ class PaymeAPIView(PaymentView):
             state = 2
 
         elif transaction.status == TransactionStatus.REJECTED:
-            if perform_time==0:
+            if perform_time == 0:
                 state = PaymeProvider.CANCEL_TRANSACTION_CODE
                 reason = 3
             else:
@@ -239,44 +256,38 @@ class PaymeAPIView(PaymentView):
             )
         )
 
-
-
-
-
     def cancel_transaction(self):
         error, error_message, code = PaymeProvider(self.params).cancel_transaction()
         if error:
             return dict(error=dict(code=code, message=error_message))
         transaction = Transaction.objects.get(transaction_id=self.params["id"], variant=Provider.PAYME)
-        state=None
-        reason=None
-        #state 1
-        print("transaction :",transaction.status)
-        print("transaction created :",transaction.created_at)
-        print("transaction cancel: ",transaction.cancel_time)
-        print("transaction paid_at : ",transaction.paid_at)
-        print("transaction.status : ",transaction.status)
-
+        state = None
+        reason = None
+        # state 1
+        print("transaction :", transaction.status)
+        print("transaction created :", transaction.created_at)
+        print("transaction cancel: ", transaction.cancel_time)
+        print("transaction paid_at : ", transaction.paid_at)
+        print("transaction.status : ", transaction.status)
 
         if transaction.status == TransactionStatus.REJECTED:
-            state=-1
-            reason=1
+            state = -1
+            reason = 1
 
         if transaction.status == TransactionStatus.WAITING:
             transaction.status = TransactionStatus.REJECTED
             transaction.cancel_time = timezone.now()
             transaction.save()
-            state=-1
-            reason=1
+            state = -1
+            reason = 1
 
-        #state 2
+        # state 2
         if transaction.status == TransactionStatus.PREAUTH:
             transaction.status = TransactionStatus.REJECTED
             transaction.cancel_time = timezone.now()
             transaction.save()
-            state=2
-            reason=1
-
+            state = 2
+            reason = 1
 
         perform_time = int(transaction.paid_at.timestamp() * 1000) if transaction.paid_at else 0
         cancel_time = int(transaction.cancel_time.timestamp() * 1000) if transaction.cancel_time else 0
@@ -290,10 +301,6 @@ class PaymeAPIView(PaymentView):
                 reason=reason,
             )
         )
-
-
-
-
 
 
 __all__ = ['PaymentView', 'PaymeAPIView', 'PaymeLinkAPIView']
