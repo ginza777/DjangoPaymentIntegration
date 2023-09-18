@@ -20,7 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&$li15lr@pgp7+-l6gz0^=(xcz8lhj*p-%0#*93!7$aqggirr7'
+# SECRET_KEY = 'django-insecure-&$li15lr@pgp7+-l6gz0^=(xcz8lhj*p-%0#*93!7$aqggirr7'
+SECRET_KEY = 'django-insasdecure-&$li15lr@pgp7+-l6gz0^=(xcz8lhj*p-%0#*93!7$aqggirr7'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -137,16 +138,16 @@ PAYMENT_MODEL = ' payment_model.Transaction'
 PROVIDERS = {
     "paylov": {
         "callback_url": "https://my.paylov.uz/checkout/create",
-        "merchant_id": 'd377c20f-56c4-4603-8566-18a3c24f7d54',
-        "api_key": 'DXBvBXEH.kwyH0wUu9uF9MEawaWUULE9ohuc5ZkeM',
-        "username": 'Paylov',
-        "password": '[$kF[ggIHSmu2k#t,Yj2.blTs7dSSGeo',
+        "merchant_id": '',
+        "api_key": '',
+        "username": '',
+        "password": '',
     },
     "payme": {
         "callback_url": "https://checkout.paycom.uz",
-        "merchant_id": "64fee17236ef51a083e4567c",
-        "secret_key": "GxhVJbuMQkrMBeX@HMoP7nI%uT8kMnpC3sIK",
-        "test_secret_key": "GxhVJbuMQkrMBeX@HMoP7nI%uT8kMnpC3sIK",
+        "merchant_id": "",
+        "secret_key": "",
+        "test_secret_key": "",
     },
 }
 REST_FRAMEWORK = {
